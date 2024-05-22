@@ -1,0 +1,1 @@
+/usr/lib/ccache/c++ CMakeFiles/rtsp_server.dir/src/main.cpp.o CMakeFiles/rtsp_server.dir/src/RtspServer.cpp.o -o rtsp_server  -lgstreamer-1.0 -lgobject-2.0 -lglib-2.0 -lgstrtspserver-1.0 -lgstreamer-1.0 -lgobject-2.0 -lglib-2.0 -lgstrtspserver-1.0 
