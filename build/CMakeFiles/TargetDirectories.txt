@@ -1,7 +1,0 @@
-/home/jake/code/ark/rtsp-server/build/CMakeFiles/rtsp_server.dir
-/home/jake/code/ark/rtsp-server/build/CMakeFiles/edit_cache.dir
-/home/jake/code/ark/rtsp-server/build/CMakeFiles/rebuild_cache.dir
-/home/jake/code/ark/rtsp-server/build/CMakeFiles/list_install_components.dir
-/home/jake/code/ark/rtsp-server/build/CMakeFiles/install.dir
-/home/jake/code/ark/rtsp-server/build/CMakeFiles/install/local.dir
-/home/jake/code/ark/rtsp-server/build/CMakeFiles/install/strip.dir
