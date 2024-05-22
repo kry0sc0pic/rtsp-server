@@ -32,7 +32,7 @@ Run
 ```
 Play the stream
 ```
-gst-launch-1.0 playbin uri=rtsp://192.168.68.77:8554/fpv
+gst-launch-1.0 playbin uri=rtsp://192.168.68.77:8554/fpv latency=0
 ```
 or
 ```
