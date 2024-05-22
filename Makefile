@@ -1,7 +1,7 @@
 all:
 	@astyle --quiet --options=astylerc src/*.cpp,*.hpp
 	@cmake -Bbuild -H.; cmake --build build -j$(nproc)
-	@size build/rtsp_server
+	@size build/rtsp-server
 
 install:
 	@cmake -Bbuild -H.

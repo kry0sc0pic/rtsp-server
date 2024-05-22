@@ -28,7 +28,7 @@ make
 ```
 Run
 ```
-./build/rtsp_server
+./build/rtsp-server
 ```
 Play the stream
 ```

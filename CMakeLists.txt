@@ -12,15 +12,15 @@ find_package(PkgConfig)
 pkg_check_modules(GST REQUIRED IMPORTED_TARGET gstreamer-1.0)
 pkg_check_modules(GST_RTSP_SERVER REQUIRED IMPORTED_TARGET gstreamer-rtsp-server-1.0)
 
-add_executable(rtsp_server
+add_executable(rtsp-server
 	src/main.cpp
 	src/RtspServer.cpp
 )
 
-target_link_libraries(rtsp_server
+target_link_libraries(rtsp-server
 	PkgConfig::GST
 	PkgConfig::GST_RTSP_SERVER
     MAVSDK::mavsdk
 )
 
-install(TARGETS rtsp_server RUNTIME DESTINATION bin)
+install(TARGETS rtsp-server RUNTIME DESTINATION bin)
