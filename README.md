@@ -32,9 +32,9 @@ Run
 ```
 Play the stream
 ```
-gst-launch-1.0 playbin uri=rtsp://192.168.68.77:8554/test
+gst-launch-1.0 playbin uri=rtsp://192.168.68.77:8554/fpv
 ```
 or
 ```
-gst-launch-1.0 rtspsrc location=rtsp://192.168.68.77:8554/test latency=0 ! rtph264depay ! avdec_h264 ! videoconvert ! autovideosink
+gst-launch-1.0 rtspsrc location=rtsp://192.168.68.77:8554/fpv latency=0 ! rtph264depay ! avdec_h264 ! videoconvert ! autovideosink
 ```

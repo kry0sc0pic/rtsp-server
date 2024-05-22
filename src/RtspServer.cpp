@@ -41,13 +41,13 @@ void RtspServer::run()
 	auto pipeline = getPlatformPipeline();
 	gst_rtsp_media_factory_set_launch(factory, pipeline.c_str());
 
-	gst_rtsp_mount_points_add_factory(mounts, "/test", factory);
+	gst_rtsp_mount_points_add_factory(mounts, "/fpv", factory);
 	g_object_unref(mounts);
 
 	gst_rtsp_server_attach(server, NULL);
 
 	loop = g_main_loop_new(NULL, FALSE);
-	std::cout << "Stream ready at rtsp://" << _address << ":" << _port << "/test" << std::endl;
+	std::cout << "Stream ready at rtsp://" << _address << ":" << _port << "/fpv" << std::endl;
 	g_main_loop_run(loop);
 }
 
