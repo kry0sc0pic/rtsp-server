@@ -13,8 +13,13 @@
 //                             video/x-h264,stream-format=byte-stream ! h264parse ! rtph264pay config-interval=1 name=pay0 pt=96 )";
 
 const char* PI_PIPELINE = "( libcamerasrc ! video/x-raw,framerate=30/1,width=1280,height=720 ! videoconvert ! \
-							v4l2h264enc extra-controls=\"encode,video_bitrate=2500000\" ! video/x-h264,stream-format=byte-stream ! \
-							h264parse ! rtph264pay config-interval=1 name=pay0 pt=96 )";
+							v4l2h264enc extra-controls=\"controls, h264_profile=4, video_bitrate=620000\" ! 'video/x-h264, profile=high, level=(string)4' ! \
+							h264parse ! rtph264pay config-interval=1 pt=96 )";
+
+// thisone doesn't crash...
+// gst-launch-1.0 -e libcamerasrc ! video/x-raw,width=1280, height=720, framerate=15/1 ! \
+// 				v4l2h264enc extra-controls="controls, h264_profile=4, video_bitrate=620000" ! 'video/x-h264, profile=high, level=(string)4' ! \
+// 				h264parse ! rtph264pay config-interval=1 pt=96 ! udpsink host=192.168.68.78 port=5600
 
 // TODO: figure out if we need to add the plugin path
 // gst-launch-1.0 --gst-plugin-path=install/gst_bridge/lib/gst_bridge/ rosimagesrc ros-topic=/camera/color/image_raw \
