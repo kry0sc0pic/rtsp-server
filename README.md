@@ -6,6 +6,7 @@
 		libgstreamer1.0-dev \
 		libgstreamer-plugins-base1.0-dev \
 		libgstreamer-plugins-bad1.0-dev \
+		libgstrtspserver-1.0-dev \
 		gstreamer1.0-plugins-ugly \
 		gstreamer1.0-tools \
 		gstreamer1.0-gl \
