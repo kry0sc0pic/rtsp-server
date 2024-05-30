@@ -5,16 +5,16 @@
 #include <fstream>
 
 // Original pipeline
-// const char* PI_PIPELINE = "( libcamerasrc ! videoconvert ! x264enc key-int-max=30 bitrate=2000 tune=zerolatency speed-preset=ultrafast ! \
-// 							video/x-h264,stream-format=byte-stream ! rtph264pay config-interval=1 name=pay0 pt=96 )";
+const char* PI_PIPELINE = "( libcamerasrc ! videoconvert ! x264enc key-int-max=15 bitrate=2500 tune=zerolatency speed-preset=ultrafast ! \
+							video/x-h264,stream-format=byte-stream ! rtph264pay config-interval=1 name=pay0 pt=96 )";
 
 // const char* PI_PIPELINE = "( libcamerasrc ! video/x-raw,framerate=30/1,width=1920,height=1080 ! videoscale ! video/x-raw,width=1280,height=720 ! \
 // 							videoconvert ! x264enc bitrate=2500 tune=zerolatency speed-preset=ultrafast key-int-max=30 ! \
 //                             video/x-h264,stream-format=byte-stream ! h264parse ! rtph264pay config-interval=1 name=pay0 pt=96 )";
 
-const char* PI_PIPELINE = "( libcamerasrc ! video/x-raw,framerate=30/1,width=1280,height=720 ! videoconvert ! \
-							v4l2h264enc extra-controls=\"controls, h264_profile=4, video_bitrate=620000\" ! 'video/x-h264, profile=high, level=(string)4' ! \
-							h264parse ! rtph264pay config-interval=1 pt=96 )";
+// const char* PI_PIPELINE = "( libcamerasrc ! video/x-raw,framerate=30/1,width=1280,height=720 ! videoconvert ! \
+// 							v4l2h264enc extra-controls=\"controls, h264_profile=4, video_bitrate=620000\" ! 'video/x-h264, profile=high, level=(string)4' ! \
+// 							h264parse ! rtph264pay config-interval=1 pt=96 )";
 
 // thisone doesn't crash...
 // gst-launch-1.0 -e libcamerasrc ! video/x-raw,width=1280, height=720, framerate=15/1 ! \
