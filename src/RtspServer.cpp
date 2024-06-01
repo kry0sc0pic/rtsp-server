@@ -1,8 +1,13 @@
 #include "RtspServer.hpp"
-#include <gst/gst.h>
-#include <gst/rtsp-server/rtsp-server.h>
 #include <iostream>
 #include <fstream>
+
+// namespace gst c lib for readability
+namespace gst
+{
+#include <gst/gst.h>
+#include <gst/rtsp-server/rtsp-server.h>
+}
 
 // Original pipeline
 const char* PI_PIPELINE = "( libcamerasrc ! videoconvert ! x264enc key-int-max=15 bitrate=2500 tune=zerolatency speed-preset=ultrafast ! \
@@ -37,54 +42,69 @@ RtspServer::RtspServer(const std::string& address, const std::string& port)
 
 void RtspServer::run()
 {
-	GstRTSPServer* server;
-	GstRTSPMountPoints* mounts;
-	GstRTSPMediaFactory* factory;
-	GMainLoop* loop;
+	gst::GstRTSPServer* server;
+	gst::GstRTSPMountPoints* mounts;
+	gst::GstRTSPMediaFactory* factory;
+	gst::GMainLoop* loop;
+	std::string pipeline;
 
-	gst_init(nullptr, nullptr);
+	gst::gst_init(nullptr, nullptr);
 
-	server = gst_rtsp_server_new();
-	gst_rtsp_server_set_address(server, _address.c_str());
-	gst_rtsp_server_set_service(server, _port.c_str());
+	server = gst::gst_rtsp_server_new();
+	gst::gst_rtsp_server_set_address(server, _address.c_str());
+	gst::gst_rtsp_server_set_service(server, _port.c_str());
 
-	mounts = gst_rtsp_server_get_mount_points(server);
-	factory = gst_rtsp_media_factory_new();
+	mounts = gst::gst_rtsp_server_get_mount_points(server);
+	factory = gst::gst_rtsp_media_factory_new();
 
-	// TODO: select platform
-	auto pipeline = getPlatformPipeline();
-	gst_rtsp_media_factory_set_launch(factory, pipeline.c_str());
+	// Build pipeline string
+	pipeline = get_pipeline(detect_platform());
 
-	gst_rtsp_mount_points_add_factory(mounts, "/fpv", factory);
-	g_object_unref(mounts);
+	gst::gst_rtsp_media_factory_set_launch(factory, pipeline.c_str());
 
-	gst_rtsp_server_attach(server, NULL);
+	gst::gst_rtsp_mount_points_add_factory(mounts, "/fpv", factory);
+	gst::g_object_unref(mounts);
 
-	loop = g_main_loop_new(NULL, FALSE);
+	gst::gst_rtsp_server_attach(server, NULL);
+
 	std::cout << "Stream ready at rtsp://" << _address << ":" << _port << "/fpv" << std::endl;
-	g_main_loop_run(loop);
+	gst::g_main_loop_run(gst::g_main_loop_new(NULL, FALSE));
 }
 
-std::string RtspServer::getPlatformPipeline()
+std::string RtspServer::get_pipeline(Platform platform)
+{
+	switch (platform) {
+	case Platform::Ubuntu:
+		return UB_PIPELINE;
+
+	case Platform::Pi:
+		return PI_PIPELINE;
+
+	case Platform::Jetson:
+		return JETSON_PIPELINE;
+	}
+}
+
+RtspServer::Platform RtspServer::detect_platform()
 {
 	std::ifstream cpuinfo("/proc/cpuinfo");
 
 	if (!cpuinfo.is_open()) {
-		return UB_PIPELINE; // Assume Ubuntu Desktop if file can't be opened
+		return Platform::Ubuntu; // Assume Ubuntu Desktop if file can't be opened
 	}
 
 	std::string line;
 
 	while (getline(cpuinfo, line)) {
 		if (line.find("Raspberry Pi") != std::string::npos) {
-			return PI_PIPELINE;
+			return Platform::Pi;
 		}
 
 		if (line.find("NVIDIA Jetson") != std::string::npos) {
-			return JETSON_PIPELINE; // Define this pipeline similarly to PI_PIPELINE and UB_PIPELINE
+			return Platform::Jetson; // Define this pipeline similarly to PI_PIPELINE and UB_PIPELINE
 		}
 	}
 
 	// Default to Ubuntu Desktop pipeline if no specific identifiers are found
-	return UB_PIPELINE;
+	return Platform::Ubuntu;
 }
