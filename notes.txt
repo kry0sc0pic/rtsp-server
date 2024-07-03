@@ -1,0 +1,12 @@
+-- didn't work
+gst-launch-1.0 nvarguscamerasrc timeout=200 ! 'video/x-raw(memory:NVMM), width=1920, height=1080, format=NV12, framerate=30/1' !  nvvidconv ! 'video/x-raw(memory:NVMM),format=RGBA' ! autovideosink
+
+-- worked
+gst-launch-1.0 nvarguscamerasrc sensor-id=0 ! 'video/x-raw(memory:NVMM),width=3280, height=2464, framerate=21/1, format=NV12' ! nvvidconv ! 'video/x-raw(memory:NVMM),format=I420' ! fpsdisplaysink text-overlay=0 video-sink=fakesink sync=0 -v
+
+-- worked
+gst-launch-1.0 nvarguscamerasrc sensor-id=0 ! 'video/x-raw(memory:NVMM),width=1920, height=1080, framerate=21/1, format=NV12' ! nvvidconv ! 'video/x-raw(memory:NVMM),format=I420' ! fpsdisplaysink text-overlay=0 video-sink=fakesink sync=0 -v
+
+
+-- worked
+gst-launch-1.0 nvarguscamerasrc ! 'video/x-raw(memory:NVMM), width=1920, height=1080, format=NV12, framerate=30/1' !  nvvidconv ! 'video/x-raw(memory:NVMM),format=RGBA' ! fpsdisplaysink text-overlay=0 video-sink=fakesink sync=0 -v

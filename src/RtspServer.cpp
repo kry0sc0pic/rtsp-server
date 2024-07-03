@@ -16,7 +16,7 @@ namespace gst
 const char* PI_PIPELINE = "( libcamerasrc ! videoconvert ! x264enc key-int-max=15 bitrate=2500 tune=zerolatency speed-preset=ultrafast ! \
 							video/x-h264,stream-format=byte-stream ! rtph264pay config-interval=1 name=pay0 pt=96 )";
 
-const char* JETSON_PIPELINE = "( nvarguscamerasrc ! videoconvert ! x264enc key-int-max=15 bitrate=2500 tune=zerolatency speed-preset=ultrafast ! \
+const char* JETSON_PIPELINE = "( nvarguscamerasrc ! nvvidconv ! x264enc key-int-max=15 bitrate=2500 tune=zerolatency speed-preset=ultrafast ! \
 							video/x-h264,stream-format=byte-stream ! rtph264pay config-interval=1 name=pay0 pt=96 )";
 
 // const char* PI_PIPELINE = "( libcamerasrc ! video/x-raw,framerate=30/1,width=1920,height=1080 ! videoscale ! video/x-raw,width=1280,height=720 ! \
@@ -74,7 +74,7 @@ void RtspServer::run()
 	// TODO: we need to handle bad disconnect events gracefully (client loses network connection and doesn't end session)
 	gst::gst_rtsp_server_attach(server, NULL);
 
-	std::cout << "Stream ready at rtsp://" << _address << ":" << _port << "/fpv" << std::endl;
+	std::cout << "Stream ready at rtsp://" << _address << ":" << _port << "/fpv" << std::endl << std::endl;
 	gst::g_main_loop_run(gst::g_main_loop_new(NULL, FALSE));
 }
 
@@ -111,11 +111,14 @@ RtspServer::Platform RtspServer::detect_platform()
 	std::cout << "result: " << result << std::endl;
 
 	if (result.find("tegra") != std::string::npos) {
+		std::cout << "Platform: Jetson" << std::endl;
 		return Platform::Jetson;
 
 	} else if (result.find("rpi") != std::string::npos) {
+		std::cout << "Platform: Raspberry Pi" << std::endl;
 		return Platform::Pi;
 	}
 
+	std::cout << "Platform: Ubuntu Desktop" << std::endl;
 	return Platform::Ubuntu;
 }
