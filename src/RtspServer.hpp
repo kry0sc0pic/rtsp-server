@@ -5,7 +5,7 @@
 class RtspServer
 {
 public:
-	RtspServer(const std::string& address, const std::string& port);
+	RtspServer(const std::string& path, const std::string& address, const std::string& port);
 	void run();
 
 private:
@@ -18,6 +18,7 @@ private:
 	Platform detect_platform();
 	std::string get_pipeline(Platform platform);
 
+	std::string _path;
 	std::string _address;
 	std::string _port;
 };

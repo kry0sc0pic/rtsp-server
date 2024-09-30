@@ -12,6 +12,8 @@ find_package(PkgConfig)
 pkg_check_modules(GST REQUIRED IMPORTED_TARGET gstreamer-1.0)
 pkg_check_modules(GST_RTSP_SERVER REQUIRED IMPORTED_TARGET gstreamer-rtsp-server-1.0)
 
+include_directories(third_party/tomlplusplus/)
+
 add_executable(rtsp-server
 	src/main.cpp
 	src/RtspServer.cpp
