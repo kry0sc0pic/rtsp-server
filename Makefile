@@ -4,9 +4,7 @@ all:
 	@size build/rtsp-server
 
 install:
-	@cmake -Bbuild -H.
-	cmake --build build -j$(nproc)
-	@sudo cmake --install build
+	@bash install.sh
 
 clean:
 	@rm -rf build

@@ -31,11 +31,11 @@ Run
 ```
 ./build/rtsp-server
 ```
-Play the stream
+View the stream
 ```
-gst-launch-1.0 playbin uri=rtsp://192.168.68.77:8554/fpv latency=0
+gst-launch-1.0 playbin uri=rtsp://0.0.0.0:5600/camera1 latency=0
 ```
 or
 ```
-gst-launch-1.0 rtspsrc location=rtsp://192.168.68.77:8554/fpv latency=0 ! rtph264depay ! avdec_h264 ! videoconvert ! autovideosink
+gst-launch-1.0 rtspsrc location=rtsp://0.0.0.0:5600/camera1 latency=0 ! rtph264depay ! avdec_h264 ! videoconvert ! autovideosink
 ```
