@@ -50,13 +50,13 @@ void RtspServer::run()
 
 	gst::gst_rtsp_media_factory_set_launch(factory, pipeline.c_str());
 
-	gst::gst_rtsp_mount_points_add_factory(mounts, _path.c_str(), factory);
+	gst::gst_rtsp_mount_points_add_factory(mounts, std::string("/" + _path).c_str(), factory);
 	gst::g_object_unref(mounts);
 
 	// TODO: we need to handle bad disconnect events gracefully (client loses network connection and doesn't end session)
 	gst::gst_rtsp_server_attach(server, NULL);
 
-	std::cout << "Stream ready at rtsp://" << _address << ":" << _port << _path << std::endl << std::endl;
+	std::cout << "Stream ready at rtsp://" << _address << ":" << _port << "/" << _path << std::endl << std::endl;
 	gst::g_main_loop_run(gst::g_main_loop_new(NULL, FALSE));
 }
 
