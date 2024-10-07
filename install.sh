@@ -7,9 +7,6 @@ export XDG_CONFIG_HOME="${XDG_CONFIG_HOME:-$DEFAULT_XDG_CONF_HOME}"
 export XDG_DATA_HOME="${XDG_DATA_HOME:-$DEFAULT_XDG_DATA_HOME}"
 THIS_DIR="$(dirname "$(realpath "$BASH_SOURCE")")"
 
-sudo true
-
-# Build the project
 make
 
 # Setup project directory
