@@ -5,8 +5,6 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
 project(rtsp-server VERSION 0.1 LANGUAGES CXX)
 
-list(APPEND CMAKE_PREFIX_PATH "/usr/local/MAVSDK/install")
-find_package(MAVSDK REQUIRED)
 find_package(PkgConfig)
 
 pkg_check_modules(GST REQUIRED IMPORTED_TARGET gstreamer-1.0)
@@ -22,7 +20,6 @@ add_executable(rtsp-server
 target_link_libraries(rtsp-server
 	PkgConfig::GST
 	PkgConfig::GST_RTSP_SERVER
-    MAVSDK::mavsdk
 )
 
 install(TARGETS rtsp-server RUNTIME DESTINATION bin)
