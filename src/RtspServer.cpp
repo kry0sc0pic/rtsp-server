@@ -78,77 +78,47 @@ std::string RtspServer::create_jetson_pipeline()
 {
 	std::stringstream ss;
 
-	// Get base dimensions from config
+	// Base dimensions
 	int width = _cameraConfig.getWidth();
 	int height = _cameraConfig.getHeight();
 	int framerate = _cameraConfig.framerate;
 
-	// Select appropriate sensor mode based on resolution and framerate
-	int sensorMode = 0;
-
-	// Match to supported modes from error log
-	if (width == 3280 && height == 2464) {
-		sensorMode = 0;
-		framerate = std::min(framerate, 21);  // Max 21fps for this mode
-
-	} else if (width == 3280 && height == 1848) {
-		sensorMode = 1;
-		framerate = std::min(framerate, 28);  // Max 28fps for this mode
-
-	} else if (width == 1920 && height == 1080) {
-		sensorMode = 2;
-		framerate = std::min(framerate, 30);  // Max 30fps for this mode
-
-	} else if (width == 1640 && height == 1232) {
-		sensorMode = 3;
-		framerate = std::min(framerate, 30);  // Max 30fps for this mode
-
-	} else if (width == 1280 && height == 720) {
-		sensorMode = 4;
-		framerate = std::min(framerate, 60);  // Max 60fps for this mode
+	// For 90/270 rotations, we want to swap width and height
+	if (_cameraConfig.rotation == CameraRotation::ROTATE_90 ||
+	    _cameraConfig.rotation == CameraRotation::ROTATE_270) {
+		std::swap(width, height);
 	}
 
-	// Start the pipeline with camera source
-	ss << "( nvarguscamerasrc "
-	   << "sensor-id=0 "
-	   << "sensor-mode=" << sensorMode << " ! "
+	// Cap framerate based on resolution
+	framerate = std::min(framerate, 30);  // Default to 30fps max
+
+	if (width == 3280 && height == 2464 || height == 3280 && width == 2464) {
+		framerate = std::min(framerate, 21);  // Max 21fps for this mode
+	}
+
+	// Start building the pipeline
+	ss << "( nvarguscamerasrc sensor-id=0 ! "
 	   << "video/x-raw(memory:NVMM),width=" << width
 	   << ",height=" << height
 	   << ",framerate=" << framerate << "/1 ! ";
 
-	// For 90/270 rotations, we need to:
-	// 1. Rotate the video
-	// 2. Keep aspect ratio consistent by padding
-	// 3. Make sure the output dimensions match what QGC expects
-
-	if (_cameraConfig.rotation == CameraRotation::ROTATE_90 ||
-	    _cameraConfig.rotation == CameraRotation::ROTATE_270) {
-
-		int flipMethod = (_cameraConfig.rotation == CameraRotation::ROTATE_90) ? 1 : 3;
-
-		// First rotate the video
-		ss << "nvvidconv flip-method=" << flipMethod << " ! ";
-
-		// Then adjust for correct aspect ratio by padding and scaling back to original dimensions
-		// This creates a properly proportioned output that won't look stretched
-		ss << "video/x-raw,width=" << height << ",height=" << width << " ! "
-		   << "videoconvert ! "
-		   << "videoscale ! "
-		   << "video/x-raw,width=" << width << ",height=" << height << ",format=I420 ! ";
+	// Add rotation using nvvidconv
+	if (_cameraConfig.rotation == CameraRotation::ROTATE_90) {
+		ss << "nvvidconv flip-method=1 ! ";  // 90 degrees clockwise
 
 	} else if (_cameraConfig.rotation == CameraRotation::ROTATE_180) {
-		// 180 degree rotation is simpler - just rotate without changing dimensions
-		ss << "nvvidconv flip-method=2 ! "
-		   << "video/x-raw,format=I420 ! ";
+		ss << "nvvidconv flip-method=2 ! ";  // 180 degrees
+
+	} else if (_cameraConfig.rotation == CameraRotation::ROTATE_270) {
+		ss << "nvvidconv flip-method=3 ! ";  // 90 degrees counterclockwise
 
 	} else {
-		// No rotation
-		ss << "nvvidconv ! "
-		   << "video/x-raw,format=I420 ! ";
+		ss << "nvvidconv ! ";  // No rotation
 	}
 
-	// Complete the pipeline with encoder and payloader
-	ss << "x264enc key-int-max=30 bitrate=" << _cameraConfig.bitrate
+	// Finish the pipeline
+	ss << "video/x-raw,format=I420 ! "
+	   << "x264enc key-int-max=30 bitrate=" << _cameraConfig.bitrate
 	   << " tune=zerolatency speed-preset=ultrafast ! "
 	   << "video/x-h264,stream-format=byte-stream,profile=baseline ! "
 	   << "rtph264pay config-interval=1 mtu=1400 name=pay0 pt=96 )";
