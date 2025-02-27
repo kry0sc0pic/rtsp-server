@@ -78,18 +78,10 @@ std::string RtspServer::create_jetson_pipeline()
 {
 	std::stringstream ss;
 
-	// For 90 and 270 degree rotations, we need to swap width and height
+	// Get base dimensions from config
 	int width = _cameraConfig.getWidth();
 	int height = _cameraConfig.getHeight();
 	int framerate = _cameraConfig.framerate;
-
-	// Determine if we're using 90/270 rotation
-	bool isPortraitOrientation = (_cameraConfig.rotation == CameraRotation::ROTATE_90 ||
-				      _cameraConfig.rotation == CameraRotation::ROTATE_270);
-
-	// Swap dimensions for portrait orientation to maintain aspect ratio
-	int outputWidth = isPortraitOrientation ? height : width;
-	int outputHeight = isPortraitOrientation ? width : height;
 
 	// Select appropriate sensor mode based on resolution and framerate
 	int sensorMode = 0;
@@ -116,28 +108,38 @@ std::string RtspServer::create_jetson_pipeline()
 		framerate = std::min(framerate, 60);  // Max 60fps for this mode
 	}
 
-	// Start building the pipeline
+	// Start the pipeline with camera source
 	ss << "( nvarguscamerasrc "
 	   << "sensor-id=0 "
-	   << "sensor-mode=" << sensorMode << " ";
-
-	// Add nvarguscamerasrc output
-	ss << "! video/x-raw(memory:NVMM),width=" << width
+	   << "sensor-mode=" << sensorMode << " ! "
+	   << "video/x-raw(memory:NVMM),width=" << width
 	   << ",height=" << height
 	   << ",framerate=" << framerate << "/1 ! ";
 
-	// Use nvvidconv for rotation - this is more reliable than flip-method
-	if (_cameraConfig.rotation == CameraRotation::ROTATE_90) {
-		ss << "nvvidconv flip-method=1 ! "  // clockwise
-		   << "video/x-raw,width=" << outputWidth << ",height=" << outputHeight << ",format=I420 ! ";
+	// For 90/270 rotations, we need to:
+	// 1. Rotate the video
+	// 2. Keep aspect ratio consistent by padding
+	// 3. Make sure the output dimensions match what QGC expects
+
+	if (_cameraConfig.rotation == CameraRotation::ROTATE_90 ||
+	    _cameraConfig.rotation == CameraRotation::ROTATE_270) {
+
+		int flipMethod = (_cameraConfig.rotation == CameraRotation::ROTATE_90) ? 1 : 3;
+
+		// First rotate the video
+		ss << "nvvidconv flip-method=" << flipMethod << " ! ";
+
+		// Then adjust for correct aspect ratio by padding and scaling back to original dimensions
+		// This creates a properly proportioned output that won't look stretched
+		ss << "video/x-raw,width=" << height << ",height=" << width << " ! "
+		   << "videoconvert ! "
+		   << "videoscale ! "
+		   << "video/x-raw,width=" << width << ",height=" << height << ",format=I420 ! ";
 
 	} else if (_cameraConfig.rotation == CameraRotation::ROTATE_180) {
-		ss << "nvvidconv flip-method=2 ! "  // 180 degrees
-		   << "video/x-raw,width=" << outputWidth << ",height=" << outputHeight << ",format=I420 ! ";
-
-	} else if (_cameraConfig.rotation == CameraRotation::ROTATE_270) {
-		ss << "nvvidconv flip-method=3 ! "  // counterclockwise
-		   << "video/x-raw,width=" << outputWidth << ",height=" << outputHeight << ",format=I420 ! ";
+		// 180 degree rotation is simpler - just rotate without changing dimensions
+		ss << "nvvidconv flip-method=2 ! "
+		   << "video/x-raw,format=I420 ! ";
 
 	} else {
 		// No rotation
@@ -145,7 +147,7 @@ std::string RtspServer::create_jetson_pipeline()
 		   << "video/x-raw,format=I420 ! ";
 	}
 
-	// Complete the pipeline
+	// Complete the pipeline with encoder and payloader
 	ss << "x264enc key-int-max=30 bitrate=" << _cameraConfig.bitrate
 	   << " tune=zerolatency speed-preset=ultrafast ! "
 	   << "video/x-h264,stream-format=byte-stream,profile=baseline ! "
