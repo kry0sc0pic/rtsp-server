@@ -1,8 +1,6 @@
 path = "camera1"
 ip_address = "0.0.0.0"
 port = 5600
-
-[camera]
 width = 640
 height = 480
 framerate = 15
