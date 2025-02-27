@@ -3,7 +3,7 @@ ip_address = "0.0.0.0"
 port = 5600
 
 [camera]
-width = 640
-height = 480
-framerate = 15
-bitrate = 700
+width = 1280
+height = 960
+framerate = 30
+bitrate = 2500

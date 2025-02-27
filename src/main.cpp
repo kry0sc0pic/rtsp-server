@@ -5,7 +5,6 @@
 
 int main()
 {
-	// Initialize default configuration
 	AppConfig config = {
 		.server = {
 			.path = "camera1",
@@ -21,7 +20,6 @@ int main()
 	};
 
 	try {
-		// Parse config file
 		toml::table tomlConfig = toml::parse_file(std::string(getenv("HOME")) + "/.local/share/rtsp-server/config.toml");
 
 		// Server config
@@ -40,20 +38,21 @@ int main()
 
 		// Camera config
 		if (toml::table* camera = tomlConfig["camera"].as_table()) {
+
 			if (camera->contains("width")) {
-				config.camera.width = tomlConfig["width"].value_or(640);
+				config.camera.width = (*camera)["width"].value_or(640);
 			}
 
 			if (camera->contains("height")) {
-				config.camera.height = tomlConfig["height"].value_or(480);
+				config.camera.height = (*camera)["height"].value_or(480);
 			}
 
 			if (camera->contains("framerate")) {
-				config.camera.framerate = tomlConfig["framerate"].value_or(15);
+				config.camera.framerate = (*camera)["framerate"].value_or(15);
 			}
 
 			if (camera->contains("bitrate")) {
-				config.camera.bitrate = tomlConfig["bitrate"].value_or(700);
+				config.camera.bitrate = (*camera)["bitrate"].value_or(700);
 			}
 		}
 
@@ -66,7 +65,6 @@ int main()
 		std::cerr << "Using default configuration." << std::endl;
 	}
 
-	// Create and run the RTSP server with the loaded configuration
 	RtspServer server(config.server, config.camera);
 	server.run();
 
