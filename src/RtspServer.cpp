@@ -17,13 +17,13 @@ RtspServer::RtspServer(const ServerConfig& serverConfig, const CameraConfig& cam
 	: _path(serverConfig.path)
 	, _address(serverConfig.address)
 	, _port(serverConfig.port)
-	, _width(cameraConfig.width)
-	, _height(cameraConfig.height)
-	, _framerate(cameraConfig.framerate)
-	, _bitrate(cameraConfig.bitrate)
+	, _cameraConfig(cameraConfig)
 {
-	std::cout << "Camera config: " << _width << "x" << _height << " @ " << _framerate
-		  << "fps, bitrate: " << _bitrate << "kbps" << std::endl;
+	std::cout << "Camera config: "
+		  << _cameraConfig.getWidth() << "x" << _cameraConfig.getHeight()
+		  << " @ " << _cameraConfig.framerate << "fps, bitrate: "
+		  << _cameraConfig.bitrate << "kbps, rotation: "
+		  << _cameraConfig.getRotationDegrees() << "°" << std::endl;
 }
 
 void RtspServer::run()
@@ -77,10 +77,55 @@ std::string RtspServer::get_pipeline(Platform platform)
 std::string RtspServer::create_jetson_pipeline()
 {
 	std::stringstream ss;
-	ss << "( nvarguscamerasrc ! "
-	   << "video/x-raw(memory:NVMM),width=" << _width << ",height=" << _height << ",framerate=" << _framerate << "/1 ! "
-	   << "nvvidconv ! "
-	   << "x264enc key-int-max=30 bitrate=" << _bitrate << " tune=zerolatency speed-preset=ultrafast ! "
+	ss << "( nvarguscamerasrc ";
+
+	// Add rotation to nvarguscamerasrc if needed
+	if (_cameraConfig.getRotationDegrees() != 0) {
+		ss << "sensor-id=0 sensor-mode=0 ";
+
+		// For Jetson, we have to use flip-method which is in 90-degree increments
+		int flipMethod = 0;
+
+		switch (_cameraConfig.rotation) {
+		case CameraRotation::ROTATE_0: flipMethod = 0; break;  // no rotation
+
+		case CameraRotation::ROTATE_90: flipMethod = 1; break;  // rotate 90 degrees clockwise
+
+		case CameraRotation::ROTATE_180: flipMethod = 2; break; // rotate 180 degrees
+
+		case CameraRotation::ROTATE_270: flipMethod = 3; break; // rotate 270 degrees clockwise
+		}
+
+		ss << "flip-method=" << flipMethod << " ";
+	}
+
+	ss << "! "
+	   << "video/x-raw(memory:NVMM),width=" << _cameraConfig.getWidth()
+	   << ",height=" << _cameraConfig.getHeight()
+	   << ",framerate=" << _cameraConfig.framerate << "/1 ! "
+	   << "nvvidconv ! ";
+
+	// If rotation didn't work via nvarguscamerasrc, add videoflip element
+	if (_cameraConfig.getRotationDegrees() != 0) {
+		std::string videoflipMethod;
+
+		switch (_cameraConfig.rotation) {
+		case CameraRotation::ROTATE_90: videoflipMethod = "clockwise"; break;
+
+		case CameraRotation::ROTATE_180: videoflipMethod = "rotate-180"; break;
+
+		case CameraRotation::ROTATE_270: videoflipMethod = "counterclockwise"; break;
+
+		default: videoflipMethod = "none"; break;
+		}
+
+		if (videoflipMethod != "none") {
+			ss << "videoflip method=" << videoflipMethod << " ! ";
+		}
+	}
+
+	ss << "x264enc key-int-max=30 bitrate=" << _cameraConfig.bitrate
+	   << " tune=zerolatency speed-preset=ultrafast ! "
 	   << "video/x-h264,stream-format=byte-stream,profile=baseline ! "
 	   << "rtph264pay config-interval=1 mtu=1400 name=pay0 pt=96 )";
 
@@ -91,10 +136,40 @@ std::string RtspServer::create_jetson_pipeline()
 std::string RtspServer::create_pi_pipeline()
 {
 	std::stringstream ss;
-	ss << "( libcamerasrc ! "
-	   << "video/x-raw,width=" << _width << ",height=" << _height << ",framerate=" << _framerate << "/1 ! "
-	   << "videoconvert ! "
-	   << "x264enc key-int-max=30 bitrate=" << _bitrate << " tune=zerolatency speed-preset=ultrafast ! "
+	ss << "( libcamerasrc ";
+
+	// Add rotation parameter for libcamerasrc if needed
+	if (_cameraConfig.getRotationDegrees() != 0) {
+		ss << "rotation=" << _cameraConfig.getRotationDegrees() << " ";
+	}
+
+	ss << "! "
+	   << "video/x-raw,width=" << _cameraConfig.getWidth()
+	   << ",height=" << _cameraConfig.getHeight()
+	   << ",framerate=" << _cameraConfig.framerate << "/1 ! "
+	   << "videoconvert ! ";
+
+	// If native rotation didn't work, add videoflip element
+	if (_cameraConfig.getRotationDegrees() != 0) {
+		std::string videoflipMethod;
+
+		switch (_cameraConfig.rotation) {
+		case CameraRotation::ROTATE_90: videoflipMethod = "clockwise"; break;
+
+		case CameraRotation::ROTATE_180: videoflipMethod = "rotate-180"; break;
+
+		case CameraRotation::ROTATE_270: videoflipMethod = "counterclockwise"; break;
+
+		default: videoflipMethod = "none"; break;
+		}
+
+		if (videoflipMethod != "none") {
+			ss << "videoflip method=" << videoflipMethod << " ! ";
+		}
+	}
+
+	ss << "x264enc key-int-max=30 bitrate=" << _cameraConfig.bitrate
+	   << " tune=zerolatency speed-preset=ultrafast ! "
 	   << "video/x-h264,stream-format=byte-stream,profile=baseline ! "
 	   << "rtph264pay config-interval=1 mtu=1400 name=pay0 pt=96 )";
 
@@ -106,9 +181,32 @@ std::string RtspServer::create_ubuntu_pipeline()
 {
 	std::stringstream ss;
 	ss << "( videotestsrc pattern=ball ! "
-	   << "video/x-raw,width=" << _width << ",height=" << _height << ",framerate=" << _framerate << "/1 ! "
-	   << "videoconvert ! "
-	   << "x264enc bitrate=" << _bitrate << " tune=zerolatency speed-preset=ultrafast ! "
+	   << "video/x-raw,width=" << _cameraConfig.getWidth()
+	   << ",height=" << _cameraConfig.getHeight()
+	   << ",framerate=" << _cameraConfig.framerate << "/1 ! "
+	   << "videoconvert ! ";
+
+	// Add videoflip element if rotation is needed
+	if (_cameraConfig.getRotationDegrees() != 0) {
+		std::string videoflipMethod;
+
+		switch (_cameraConfig.rotation) {
+		case CameraRotation::ROTATE_90: videoflipMethod = "clockwise"; break;
+
+		case CameraRotation::ROTATE_180: videoflipMethod = "rotate-180"; break;
+
+		case CameraRotation::ROTATE_270: videoflipMethod = "counterclockwise"; break;
+
+		default: videoflipMethod = "none"; break;
+		}
+
+		if (videoflipMethod != "none") {
+			ss << "videoflip method=" << videoflipMethod << " ! ";
+		}
+	}
+
+	ss << "x264enc bitrate=" << _cameraConfig.bitrate
+	   << " tune=zerolatency speed-preset=ultrafast ! "
 	   << "video/x-h264,stream-format=byte-stream,profile=baseline ! "
 	   << "rtph264pay config-interval=1 mtu=1400 name=pay0 pt=96 )";
 
