@@ -78,85 +78,51 @@ std::string RtspServer::create_jetson_pipeline()
 {
 	std::stringstream ss;
 
-	// Original dimensions
+	// Use consistent dimensions regardless of rotation
 	int width = _cameraConfig.getWidth();
 	int height = _cameraConfig.getHeight();
 	int framerate = _cameraConfig.framerate;
 
-	// Select appropriate sensor mode based on resolution and framerate
-	int sensorMode = 0;
-
-	// Match to supported modes from error log
+	// Cap framerate based on resolution
 	if (width == 3280 && height == 2464) {
-		sensorMode = 0;
-		framerate = std::min(framerate, 21);  // Max 21fps for this mode
+		framerate = std::min(framerate, 21);
 
 	} else if (width == 3280 && height == 1848) {
-		sensorMode = 1;
-		framerate = std::min(framerate, 28);  // Max 28fps for this mode
+		framerate = std::min(framerate, 28);
 
-	} else if (width == 1920 && height == 1080) {
-		sensorMode = 2;
-		framerate = std::min(framerate, 30);  // Max 30fps for this mode
-
-	} else if (width == 1640 && height == 1232) {
-		sensorMode = 3;
-		framerate = std::min(framerate, 30);  // Max 30fps for this mode
+	} else if (width == 1920 && height == 1080 ||
+		   width == 1640 && height == 1232) {
+		framerate = std::min(framerate, 30);
 
 	} else if (width == 1280 && height == 720) {
-		sensorMode = 4;
-		framerate = std::min(framerate, 60);  // Max 60fps for this mode
+		framerate = std::min(framerate, 60);
+
+	} else {
+		framerate = std::min(framerate, 30); // Default cap
 	}
 
-	// Start building the pipeline
-	ss << "( nvarguscamerasrc "
-	   << "sensor-id=0 "
-	   << "sensor-mode=" << sensorMode << " ! "
+	// Start the pipeline with camera capture
+	ss << "( nvarguscamerasrc sensor-id=0 ! "
 	   << "video/x-raw(memory:NVMM),width=" << width
 	   << ",height=" << height
 	   << ",framerate=" << framerate << "/1 ! ";
 
-	// For 90/270 rotations, we need a more complex transformation
-	if (_cameraConfig.rotation == CameraRotation::ROTATE_90 ||
-	    _cameraConfig.rotation == CameraRotation::ROTATE_270) {
+	// Apply rotation using nvvidconv
+	int flipMethod = 0;
 
-		int flipMethod = (_cameraConfig.rotation == CameraRotation::ROTATE_90) ? 1 : 3;
+	switch (_cameraConfig.rotation) {
+	case CameraRotation::ROTATE_90:  flipMethod = 1; break;
 
-		// Apply the rotation
-		ss << "nvvidconv flip-method=" << flipMethod << " ! ";
+	case CameraRotation::ROTATE_180: flipMethod = 2; break;
 
-		// Maintain the landscape orientation by fitting the rotated image
-		// into the original frame size with black bars (letterboxing)
-		int scaleWidth = height;
-		int scaleHeight = width;
+	case CameraRotation::ROTATE_270: flipMethod = 3; break;
 
-		// Calculate scaling factor to fit in original frame
-		float scaleFactor = std::min(
-					    static_cast<float>(width) / scaleWidth,
-					    static_cast<float>(height) / scaleHeight
-				    );
-
-		int finalWidth = static_cast<int>(scaleWidth * scaleFactor);
-		int finalHeight = static_cast<int>(scaleHeight * scaleFactor);
-
-		// Add a videocrop element to trim to desired aspect ratio
-		ss << "video/x-raw ! "
-		   << "videocrop top=" << (height - finalHeight) / 2
-		   << " bottom=" << (height - finalHeight) / 2
-		   << " left=" << (width - finalWidth) / 2
-		   << " right=" << (width - finalWidth) / 2 << " ! "
-		   << "video/x-raw,width=" << width << ",height=" << height << ",format=I420 ! ";
-
-	} else if (_cameraConfig.rotation == CameraRotation::ROTATE_180) {
-		// 180 degree rotation
-		ss << "nvvidconv flip-method=2 ! "
-		   << "video/x-raw,format=I420 ! ";
-
-	} else {
-		// No rotation
-		ss << "nvvidconv ! "
-		   << "video/x-raw,format=I420 ! ";
+	default: flipMethod = 0; break;
 	}
+
+	// Apply the rotation - always output the original dimensions
+	ss << "nvvidconv flip-method=" << flipMethod << " ! "
+	   << "video/x-raw,width=" << width << ",height=" << height << ",format=I420 ! ";
 
 	// Complete the pipeline
 	ss << "x264enc key-int-max=30 bitrate=" << _cameraConfig.bitrate
