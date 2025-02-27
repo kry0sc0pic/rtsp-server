@@ -78,29 +78,21 @@ std::string RtspServer::create_jetson_pipeline()
 {
 	std::stringstream ss;
 
-	// For 90 and 270 degree rotations we need to swap width and height
-	// Also need to ensure we're using a valid sensor mode with proper framerate
+	// For 90 and 270 degree rotations, we need to swap width and height
 	int width = _cameraConfig.getWidth();
 	int height = _cameraConfig.getHeight();
 	int framerate = _cameraConfig.framerate;
-	bool is90or270 = (_cameraConfig.rotation == CameraRotation::ROTATE_90 ||
-			  _cameraConfig.rotation == CameraRotation::ROTATE_270);
 
-	// Get flip method for rotation
-	int flipMethod = 0;
+	// Determine if we're using 90/270 rotation
+	bool isPortraitOrientation = (_cameraConfig.rotation == CameraRotation::ROTATE_90 ||
+				      _cameraConfig.rotation == CameraRotation::ROTATE_270);
 
-	switch (_cameraConfig.rotation) {
-	case CameraRotation::ROTATE_0:   flipMethod = 0; break;  // no rotation
-
-	case CameraRotation::ROTATE_90:  flipMethod = 1; break;  // rotate 90 degrees clockwise
-
-	case CameraRotation::ROTATE_180: flipMethod = 2; break;  // rotate 180 degrees
-
-	case CameraRotation::ROTATE_270: flipMethod = 3; break;  // rotate 270 degrees clockwise
-	}
+	// Swap dimensions for portrait orientation to maintain aspect ratio
+	int outputWidth = isPortraitOrientation ? height : width;
+	int outputHeight = isPortraitOrientation ? width : height;
 
 	// Select appropriate sensor mode based on resolution and framerate
-	int sensorMode = 0;  // Default mode
+	int sensorMode = 0;
 
 	// Match to supported modes from error log
 	if (width == 3280 && height == 2464) {
@@ -129,28 +121,32 @@ std::string RtspServer::create_jetson_pipeline()
 	   << "sensor-id=0 "
 	   << "sensor-mode=" << sensorMode << " ";
 
-	// Add flip-method for hardware rotation
-	if (flipMethod > 0) {
-		ss << "flip-method=" << flipMethod << " ";
-	}
-
-	// Configure caps with properly matched framerate
+	// Add nvarguscamerasrc output
 	ss << "! video/x-raw(memory:NVMM),width=" << width
 	   << ",height=" << height
 	   << ",framerate=" << framerate << "/1 ! ";
 
-	// For 90/270 rotations, we need to use nvvidconv and handle the rotation there
-	// since hardware flip-method may not work well for these angles
-	if (is90or270) {
-		ss << "nvvidconv flip-method=" << flipMethod << " ! ";
+	// Use nvvidconv for rotation - this is more reliable than flip-method
+	if (_cameraConfig.rotation == CameraRotation::ROTATE_90) {
+		ss << "nvvidconv flip-method=1 ! "  // clockwise
+		   << "video/x-raw,width=" << outputWidth << ",height=" << outputHeight << ",format=I420 ! ";
+
+	} else if (_cameraConfig.rotation == CameraRotation::ROTATE_180) {
+		ss << "nvvidconv flip-method=2 ! "  // 180 degrees
+		   << "video/x-raw,width=" << outputWidth << ",height=" << outputHeight << ",format=I420 ! ";
+
+	} else if (_cameraConfig.rotation == CameraRotation::ROTATE_270) {
+		ss << "nvvidconv flip-method=3 ! "  // counterclockwise
+		   << "video/x-raw,width=" << outputWidth << ",height=" << outputHeight << ",format=I420 ! ";
 
 	} else {
-		ss << "nvvidconv ! ";
+		// No rotation
+		ss << "nvvidconv ! "
+		   << "video/x-raw,format=I420 ! ";
 	}
 
-	// The rest of the pipeline remains the same
-	ss << "video/x-raw,format=I420 ! "
-	   << "x264enc key-int-max=30 bitrate=" << _cameraConfig.bitrate
+	// Complete the pipeline
+	ss << "x264enc key-int-max=30 bitrate=" << _cameraConfig.bitrate
 	   << " tune=zerolatency speed-preset=ultrafast ! "
 	   << "video/x-h264,stream-format=byte-stream,profile=baseline ! "
 	   << "rtph264pay config-interval=1 mtu=1400 name=pay0 pt=96 )";
