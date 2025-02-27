@@ -78,18 +78,10 @@ std::string RtspServer::create_jetson_pipeline()
 {
 	std::stringstream ss;
 
-	// For 90 and 270 degree rotations, we need to swap width and height
+	// Original dimensions
 	int width = _cameraConfig.getWidth();
 	int height = _cameraConfig.getHeight();
 	int framerate = _cameraConfig.framerate;
-
-	// Determine if we're using 90/270 rotation
-	bool isPortraitOrientation = (_cameraConfig.rotation == CameraRotation::ROTATE_90 ||
-				      _cameraConfig.rotation == CameraRotation::ROTATE_270);
-
-	// Swap dimensions for portrait orientation to maintain aspect ratio
-	int outputWidth = isPortraitOrientation ? height : width;
-	int outputHeight = isPortraitOrientation ? width : height;
 
 	// Select appropriate sensor mode based on resolution and framerate
 	int sensorMode = 0;
@@ -119,25 +111,46 @@ std::string RtspServer::create_jetson_pipeline()
 	// Start building the pipeline
 	ss << "( nvarguscamerasrc "
 	   << "sensor-id=0 "
-	   << "sensor-mode=" << sensorMode << " ";
-
-	// Add nvarguscamerasrc output
-	ss << "! video/x-raw(memory:NVMM),width=" << width
+	   << "sensor-mode=" << sensorMode << " ! "
+	   << "video/x-raw(memory:NVMM),width=" << width
 	   << ",height=" << height
 	   << ",framerate=" << framerate << "/1 ! ";
 
-	// Use nvvidconv for rotation - this is more reliable than flip-method
-	if (_cameraConfig.rotation == CameraRotation::ROTATE_90) {
-		ss << "nvvidconv flip-method=1 ! "  // clockwise
-		   << "video/x-raw,width=" << outputWidth << ",height=" << outputHeight << ",format=I420 ! ";
+	// For 90/270 rotations, we need a more complex transformation
+	if (_cameraConfig.rotation == CameraRotation::ROTATE_90 ||
+	    _cameraConfig.rotation == CameraRotation::ROTATE_270) {
+
+		int flipMethod = (_cameraConfig.rotation == CameraRotation::ROTATE_90) ? 1 : 3;
+
+		// Apply the rotation
+		ss << "nvvidconv flip-method=" << flipMethod << " ! ";
+
+		// Maintain the landscape orientation by fitting the rotated image
+		// into the original frame size with black bars (letterboxing)
+		int scaleWidth = height;
+		int scaleHeight = width;
+
+		// Calculate scaling factor to fit in original frame
+		float scaleFactor = std::min(
+					    static_cast<float>(width) / scaleWidth,
+					    static_cast<float>(height) / scaleHeight
+				    );
+
+		int finalWidth = static_cast<int>(scaleWidth * scaleFactor);
+		int finalHeight = static_cast<int>(scaleHeight * scaleFactor);
+
+		// Add a videocrop element to trim to desired aspect ratio
+		ss << "video/x-raw ! "
+		   << "videocrop top=" << (height - finalHeight) / 2
+		   << " bottom=" << (height - finalHeight) / 2
+		   << " left=" << (width - finalWidth) / 2
+		   << " right=" << (width - finalWidth) / 2 << " ! "
+		   << "video/x-raw,width=" << width << ",height=" << height << ",format=I420 ! ";
 
 	} else if (_cameraConfig.rotation == CameraRotation::ROTATE_180) {
-		ss << "nvvidconv flip-method=2 ! "  // 180 degrees
-		   << "video/x-raw,width=" << outputWidth << ",height=" << outputHeight << ",format=I420 ! ";
-
-	} else if (_cameraConfig.rotation == CameraRotation::ROTATE_270) {
-		ss << "nvvidconv flip-method=3 ! "  // counterclockwise
-		   << "video/x-raw,width=" << outputWidth << ",height=" << outputHeight << ",format=I420 ! ";
+		// 180 degree rotation
+		ss << "nvvidconv flip-method=2 ! "
+		   << "video/x-raw,format=I420 ! ";
 
 	} else {
 		// No rotation
