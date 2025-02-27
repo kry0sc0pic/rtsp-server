@@ -4,6 +4,7 @@
 #include <iostream>
 #include <fstream>
 #include <memory>
+#include <sstream>
 
 // namespace gst c lib for readability
 namespace gst
@@ -12,21 +13,18 @@ namespace gst
 #include <gst/rtsp-server/rtsp-server.h>
 }
 
-// Original pipeline
-const char* PI_PIPELINE = "( libcamerasrc ! videoconvert ! x264enc key-int-max=15 bitrate=2500 tune=zerolatency speed-preset=ultrafast ! \
-							video/x-h264,stream-format=byte-stream ! rtph264pay config-interval=1 name=pay0 pt=96 )";
-
-const char* JETSON_PIPELINE = "( nvarguscamerasrc ! nvvidconv ! x264enc key-int-max=15 bitrate=2500 tune=zerolatency speed-preset=ultrafast ! \
-							video/x-h264,stream-format=byte-stream ! rtph264pay config-interval=1 name=pay0 pt=96 )";
-
-const char* UB_PIPELINE = "( videotestsrc pattern=ball ! videoconvert ! x264enc bitrate=2000 tune=zerolatency speed-preset=ultrafast ! \
-							video/x-h264,stream-format=byte-stream ! rtph264pay config-interval=1 name=pay0 pt=96 )";
-
-RtspServer::RtspServer(const std::string& path, const std::string& address, const std::string& port)
-	: _path(path)
-	, _address(address)
-	, _port(port)
-{}
+RtspServer::RtspServer(const ServerConfig& serverConfig, const CameraConfig& cameraConfig)
+	: _path(serverConfig.path)
+	, _address(serverConfig.address)
+	, _port(serverConfig.port)
+	, _width(cameraConfig.width)
+	, _height(cameraConfig.height)
+	, _framerate(cameraConfig.framerate)
+	, _bitrate(cameraConfig.bitrate)
+{
+	std::cout << "Camera config: " << _width << "x" << _height << " @ " << _framerate
+		  << "fps, bitrate: " << _bitrate << "kbps" << std::endl;
+}
 
 void RtspServer::run()
 {
@@ -64,16 +62,58 @@ std::string RtspServer::get_pipeline(Platform platform)
 {
 	switch (platform) {
 	case Platform::Ubuntu:
-		return UB_PIPELINE;
+		return create_ubuntu_pipeline();
 
 	case Platform::Pi:
-		return PI_PIPELINE;
+		return create_pi_pipeline();
 
 	case Platform::Jetson:
-		return JETSON_PIPELINE;
+		return create_jetson_pipeline();
 	}
 
-	return UB_PIPELINE;
+	return create_ubuntu_pipeline();
+}
+
+std::string RtspServer::create_jetson_pipeline()
+{
+	std::stringstream ss;
+	ss << "( nvarguscamerasrc ! "
+	   << "video/x-raw(memory:NVMM),width=" << _width << ",height=" << _height << ",framerate=" << _framerate << "/1 ! "
+	   << "nvvidconv ! "
+	   << "x264enc key-int-max=30 bitrate=" << _bitrate << " tune=zerolatency speed-preset=ultrafast ! "
+	   << "video/x-h264,stream-format=byte-stream,profile=baseline ! "
+	   << "rtph264pay config-interval=1 mtu=1400 name=pay0 pt=96 )";
+
+	std::cout << "Using pipeline: " << ss.str() << std::endl;
+	return ss.str();
+}
+
+std::string RtspServer::create_pi_pipeline()
+{
+	std::stringstream ss;
+	ss << "( libcamerasrc ! "
+	   << "video/x-raw,width=" << _width << ",height=" << _height << ",framerate=" << _framerate << "/1 ! "
+	   << "videoconvert ! "
+	   << "x264enc key-int-max=30 bitrate=" << _bitrate << " tune=zerolatency speed-preset=ultrafast ! "
+	   << "video/x-h264,stream-format=byte-stream,profile=baseline ! "
+	   << "rtph264pay config-interval=1 mtu=1400 name=pay0 pt=96 )";
+
+	std::cout << "Using pipeline: " << ss.str() << std::endl;
+	return ss.str();
+}
+
+std::string RtspServer::create_ubuntu_pipeline()
+{
+	std::stringstream ss;
+	ss << "( videotestsrc pattern=ball ! "
+	   << "video/x-raw,width=" << _width << ",height=" << _height << ",framerate=" << _framerate << "/1 ! "
+	   << "videoconvert ! "
+	   << "x264enc bitrate=" << _bitrate << " tune=zerolatency speed-preset=ultrafast ! "
+	   << "video/x-h264,stream-format=byte-stream,profile=baseline ! "
+	   << "rtph264pay config-interval=1 mtu=1400 name=pay0 pt=96 )";
+
+	std::cout << "Using pipeline: " << ss.str() << std::endl;
+	return ss.str();
 }
 
 RtspServer::Platform RtspServer::detect_platform()

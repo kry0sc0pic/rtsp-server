@@ -1,11 +1,12 @@
 #pragma once
 
+#include "Config.hpp"
 #include <string>
 
 class RtspServer
 {
 public:
-	RtspServer(const std::string& path, const std::string& address, const std::string& port);
+	RtspServer(const ServerConfig& serverConfig, const CameraConfig& cameraConfig);
 	void run();
 
 private:
@@ -17,8 +18,18 @@ private:
 
 	Platform detect_platform();
 	std::string get_pipeline(Platform platform);
+	std::string create_jetson_pipeline();
+	std::string create_pi_pipeline();
+	std::string create_ubuntu_pipeline();
 
+	// Server configuration
 	std::string _path;
 	std::string _address;
 	std::string _port;
+
+	// Camera configuration
+	int _width;
+	int _height;
+	int _framerate;
+	int _bitrate;
 };
