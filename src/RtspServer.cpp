@@ -78,47 +78,75 @@ std::string RtspServer::create_jetson_pipeline()
 {
 	std::stringstream ss;
 
-	// Base dimensions
+	// For 90 and 270 degree rotations, we need to swap width and height
 	int width = _cameraConfig.getWidth();
 	int height = _cameraConfig.getHeight();
 	int framerate = _cameraConfig.framerate;
 
-	// For 90/270 rotations, we want to swap width and height
-	if (_cameraConfig.rotation == CameraRotation::ROTATE_90 ||
-	    _cameraConfig.rotation == CameraRotation::ROTATE_270) {
-		std::swap(width, height);
-	}
+	// Determine if we're using 90/270 rotation
+	bool isPortraitOrientation = (_cameraConfig.rotation == CameraRotation::ROTATE_90 ||
+				      _cameraConfig.rotation == CameraRotation::ROTATE_270);
 
-	// Cap framerate based on resolution
-	framerate = std::min(framerate, 30);  // Default to 30fps max
+	// Swap dimensions for portrait orientation to maintain aspect ratio
+	int outputWidth = isPortraitOrientation ? height : width;
+	int outputHeight = isPortraitOrientation ? width : height;
 
-	if (width == 3280 && height == 2464 || height == 3280 && width == 2464) {
+	// Select appropriate sensor mode based on resolution and framerate
+	int sensorMode = 0;
+
+	// Match to supported modes from error log
+	if (width == 3280 && height == 2464) {
+		sensorMode = 0;
 		framerate = std::min(framerate, 21);  // Max 21fps for this mode
+
+	} else if (width == 3280 && height == 1848) {
+		sensorMode = 1;
+		framerate = std::min(framerate, 28);  // Max 28fps for this mode
+
+	} else if (width == 1920 && height == 1080) {
+		sensorMode = 2;
+		framerate = std::min(framerate, 30);  // Max 30fps for this mode
+
+	} else if (width == 1640 && height == 1232) {
+		sensorMode = 3;
+		framerate = std::min(framerate, 30);  // Max 30fps for this mode
+
+	} else if (width == 1280 && height == 720) {
+		sensorMode = 4;
+		framerate = std::min(framerate, 60);  // Max 60fps for this mode
 	}
 
 	// Start building the pipeline
-	ss << "( nvarguscamerasrc sensor-id=0 ! "
-	   << "video/x-raw(memory:NVMM),width=" << width
+	ss << "( nvarguscamerasrc "
+	   << "sensor-id=0 "
+	   << "sensor-mode=" << sensorMode << " ";
+
+	// Add nvarguscamerasrc output
+	ss << "! video/x-raw(memory:NVMM),width=" << width
 	   << ",height=" << height
 	   << ",framerate=" << framerate << "/1 ! ";
 
-	// Add rotation using nvvidconv
+	// Use nvvidconv for rotation - this is more reliable than flip-method
 	if (_cameraConfig.rotation == CameraRotation::ROTATE_90) {
-		ss << "nvvidconv flip-method=1 ! ";  // 90 degrees clockwise
+		ss << "nvvidconv flip-method=1 ! "  // clockwise
+		   << "video/x-raw,width=" << outputWidth << ",height=" << outputHeight << ",format=I420 ! ";
 
 	} else if (_cameraConfig.rotation == CameraRotation::ROTATE_180) {
-		ss << "nvvidconv flip-method=2 ! ";  // 180 degrees
+		ss << "nvvidconv flip-method=2 ! "  // 180 degrees
+		   << "video/x-raw,width=" << outputWidth << ",height=" << outputHeight << ",format=I420 ! ";
 
 	} else if (_cameraConfig.rotation == CameraRotation::ROTATE_270) {
-		ss << "nvvidconv flip-method=3 ! ";  // 90 degrees counterclockwise
+		ss << "nvvidconv flip-method=3 ! "  // counterclockwise
+		   << "video/x-raw,width=" << outputWidth << ",height=" << outputHeight << ",format=I420 ! ";
 
 	} else {
-		ss << "nvvidconv ! ";  // No rotation
+		// No rotation
+		ss << "nvvidconv ! "
+		   << "video/x-raw,format=I420 ! ";
 	}
 
-	// Finish the pipeline
-	ss << "video/x-raw,format=I420 ! "
-	   << "x264enc key-int-max=30 bitrate=" << _cameraConfig.bitrate
+	// Complete the pipeline
+	ss << "x264enc key-int-max=30 bitrate=" << _cameraConfig.bitrate
 	   << " tune=zerolatency speed-preset=ultrafast ! "
 	   << "video/x-h264,stream-format=byte-stream,profile=baseline ! "
 	   << "rtph264pay config-interval=1 mtu=1400 name=pay0 pt=96 )";
