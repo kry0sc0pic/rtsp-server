@@ -39,20 +39,22 @@ int main()
 		}
 
 		// Camera config
-		if (tomlConfig.contains("width")) {
-			config.camera.width = tomlConfig["width"].value_or(640);
-		}
+		if (toml::table* camera = tomlConfig["camera"].as_table()) {
+			if (camera->contains("width")) {
+				config.camera.width = tomlConfig["width"].value_or(640);
+			}
 
-		if (tomlConfig.contains("height")) {
-			config.camera.height = tomlConfig["height"].value_or(480);
-		}
+			if (camera->contains("height")) {
+				config.camera.height = tomlConfig["height"].value_or(480);
+			}
 
-		if (tomlConfig.contains("framerate")) {
-			config.camera.framerate = tomlConfig["framerate"].value_or(15);
-		}
+			if (camera->contains("framerate")) {
+				config.camera.framerate = tomlConfig["framerate"].value_or(15);
+			}
 
-		if (tomlConfig.contains("bitrate")) {
-			config.camera.bitrate = tomlConfig["bitrate"].value_or(700);
+			if (camera->contains("bitrate")) {
+				config.camera.bitrate = tomlConfig["bitrate"].value_or(700);
+			}
 		}
 
 	} catch (const toml::parse_error& err) {
