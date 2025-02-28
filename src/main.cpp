@@ -15,7 +15,7 @@ int main()
 		.camera = {
 			.resolution = ResolutionPreset::R640x480,
 			.framerate = 15,
-			.bitrate = 700,
+			.bitrate = 2000,
 			.rotation = CameraRotation::ROTATE_0
 		}
 	};
@@ -53,7 +53,7 @@ int main()
 			}
 
 			if (camera->contains("bitrate")) {
-				config.camera.bitrate = (*camera)["bitrate"].value_or(700);
+				config.camera.bitrate = (*camera)["bitrate"].value_or(2000);
 				std::cout << "Bitrate set to: " << config.camera.bitrate << std::endl;
 			}
 

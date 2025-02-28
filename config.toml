@@ -5,8 +5,8 @@ port = 5600
 
 [camera]
 framerate = 30
-bitrate = 2500
-resolution = "1280x720"
-resolution_options = ["320x240", "640x480", "800x600", "1280x720", "1280x960", "1920x1080"]
+bitrate = 5000
+resolution = "1920x1080"
+resolution_options = ["320x240", "640x480", "1280x720", "1920x1080"]
 rotation = "0"
 rotation_options = ["0", "90", "180", "270"]

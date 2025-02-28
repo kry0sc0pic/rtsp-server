@@ -1,16 +1,14 @@
 #include "Config.hpp"
 #include <unordered_map>
 #include <stdexcept>
+#include <algorithm>
 
-// String to ResolutionPreset mapping
 ResolutionPreset stringToResolution(const std::string& resolution)
 {
 	static const std::unordered_map<std::string, ResolutionPreset> mapping = {
 		{"320x240", ResolutionPreset::R320x240},
 		{"640x480", ResolutionPreset::R640x480},
-		{"800x600", ResolutionPreset::R800x600},
 		{"1280x720", ResolutionPreset::R1280x720},
-		{"1280x960", ResolutionPreset::R1280x960},
 		{"1920x1080", ResolutionPreset::R1920x1080}
 	};
 
@@ -20,19 +18,15 @@ ResolutionPreset stringToResolution(const std::string& resolution)
 		return it->second;
 	}
 
-	// Default to 640x480 if not found
 	return ResolutionPreset::R640x480;
 }
 
-// ResolutionPreset to string mapping
 std::string resolutionToString(ResolutionPreset resolution)
 {
 	static const std::unordered_map<ResolutionPreset, std::string> mapping = {
 		{ResolutionPreset::R320x240, "320x240"},
 		{ResolutionPreset::R640x480, "640x480"},
-		{ResolutionPreset::R800x600, "800x600"},
 		{ResolutionPreset::R1280x720, "1280x720"},
-		{ResolutionPreset::R1280x960, "1280x960"},
 		{ResolutionPreset::R1920x1080, "1920x1080"}
 	};
 
@@ -45,7 +39,6 @@ std::string resolutionToString(ResolutionPreset resolution)
 	return "unknown";
 }
 
-// String to CameraRotation mapping
 CameraRotation stringToRotation(const std::string& rotation)
 {
 	static const std::unordered_map<std::string, CameraRotation> mapping = {
@@ -61,11 +54,9 @@ CameraRotation stringToRotation(const std::string& rotation)
 		return it->second;
 	}
 
-	// Default to no rotation if not found
 	return CameraRotation::ROTATE_0;
 }
 
-// CameraRotation to string mapping
 std::string rotationToString(CameraRotation rotation)
 {
 	static const std::unordered_map<CameraRotation, std::string> mapping = {
