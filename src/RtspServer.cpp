@@ -76,62 +76,54 @@ std::string RtspServer::get_pipeline(Platform platform)
 
 std::string RtspServer::create_jetson_pipeline()
 {
-	std::stringstream ss;
+    std::stringstream ss;
 
-	// Use consistent dimensions regardless of rotation
-	int width = _cameraConfig.getWidth();
-	int height = _cameraConfig.getHeight();
-	int framerate = _cameraConfig.framerate;
+    // Use consistent dimensions regardless of rotation
+    int width = _cameraConfig.getWidth();
+    int height = _cameraConfig.getHeight();
+    int framerate = _cameraConfig.framerate;
 
-	// Cap framerate based on resolution
-	if (width == 3280 && height == 2464) {
-		framerate = std::min(framerate, 21);
+    // Cap framerate based on resolution
+    if (width == 3280 && height == 2464) {
+        framerate = std::min(framerate, 21);
+    } else if (width == 3280 && height == 1848) {
+        framerate = std::min(framerate, 28);
+    } else if (width == 1920 && height == 1080 ||
+               width == 1640 && height == 1232) {
+        framerate = std::min(framerate, 30);
+    } else if (width == 1280 && height == 720) {
+        framerate = std::min(framerate, 60);
+    } else {
+        framerate = std::min(framerate, 30); // Default cap
+    }
 
-	} else if (width == 3280 && height == 1848) {
-		framerate = std::min(framerate, 28);
+    // Start the pipeline with camera capture
+    ss << "( nvarguscamerasrc sensor-id=0 ! "
+       << "video/x-raw(memory:NVMM),width=" << width
+       << ",height=" << height
+       << ",framerate=" << framerate << "/1 ! ";
 
-	} else if (width == 1920 && height == 1080 ||
-		   width == 1640 && height == 1232) {
-		framerate = std::min(framerate, 30);
+    // Apply rotation using nvvidconv
+    int flipMethod = 0;
+    switch (_cameraConfig.rotation) {
+        case CameraRotation::ROTATE_90:  flipMethod = 1; break;
+        case CameraRotation::ROTATE_180: flipMethod = 2; break;
+        case CameraRotation::ROTATE_270: flipMethod = 3; break;
+        default: flipMethod = 0; break;
+    }
 
-	} else if (width == 1280 && height == 720) {
-		framerate = std::min(framerate, 60);
+    // Apply the rotation - always output the original dimensions
+    ss << "nvvidconv flip-method=" << flipMethod << " ! "
+       << "video/x-raw,width=" << width << ",height=" << height << ",format=I420 ! ";
 
-	} else {
-		framerate = std::min(framerate, 30); // Default cap
-	}
+    // Complete the pipeline
+    ss << "x264enc key-int-max=30 bitrate=" << _cameraConfig.bitrate
+       << " tune=zerolatency speed-preset=ultrafast ! "
+       << "video/x-h264,stream-format=byte-stream,profile=baseline ! "
+       << "rtph264pay config-interval=1 mtu=1400 name=pay0 pt=96 )";
 
-	// Start the pipeline with camera capture
-	ss << "( nvarguscamerasrc sensor-id=0 ! "
-	   << "video/x-raw(memory:NVMM),width=" << width
-	   << ",height=" << height
-	   << ",framerate=" << framerate << "/1 ! ";
-
-	// Apply rotation using nvvidconv
-	int flipMethod = 0;
-
-	switch (_cameraConfig.rotation) {
-	case CameraRotation::ROTATE_90:  flipMethod = 1; break;
-
-	case CameraRotation::ROTATE_180: flipMethod = 2; break;
-
-	case CameraRotation::ROTATE_270: flipMethod = 3; break;
-
-	default: flipMethod = 0; break;
-	}
-
-	// Apply the rotation - always output the original dimensions
-	ss << "nvvidconv flip-method=" << flipMethod << " ! "
-	   << "video/x-raw,width=" << width << ",height=" << height << ",format=I420 ! ";
-
-	// Complete the pipeline
-	ss << "x264enc key-int-max=30 bitrate=" << _cameraConfig.bitrate
-	   << " tune=zerolatency speed-preset=ultrafast ! "
-	   << "video/x-h264,stream-format=byte-stream,profile=baseline ! "
-	   << "rtph264pay config-interval=1 mtu=1400 name=pay0 pt=96 )";
-
-	std::cout << "Using pipeline: " << ss.str() << std::endl;
-	return ss.str();
+    std::cout << "Using pipeline: " << ss.str() << std::endl;
+    return ss.str();
 }
 
 std::string RtspServer::create_pi_pipeline()
