@@ -5,6 +5,7 @@
 
 int main()
 {
+	// Initialize default configuration
 	AppConfig config = {
 		.server = {
 			.path = "camera1",
@@ -12,47 +13,55 @@ int main()
 			.port = "5600"
 		},
 		.camera = {
-			.width = 640,
-			.height = 480,
+			.resolution = ResolutionPreset::R640x480,
 			.framerate = 15,
-			.bitrate = 700
+			.bitrate = 2000,
+			.rotation = CameraRotation::ROTATE_0
 		}
 	};
 
 	try {
 		toml::table tomlConfig = toml::parse_file(std::string(getenv("HOME")) + "/.local/share/rtsp-server/config.toml");
 
-		// Server config
-		if (tomlConfig.contains("path")) {
-			config.server.path = tomlConfig["path"].value_or("camera1");
-		}
+		// RTSP server config
+		if (auto rtsp = tomlConfig["rtsp"].as_table()) {
+			if (rtsp->contains("url")) {
+				config.server.path = (*rtsp)["url"].value_or("camera1");
+			}
 
-		if (tomlConfig.contains("ip_address")) {
-			config.server.address = tomlConfig["ip_address"].value_or("0.0.0.0");
-		}
+			if (rtsp->contains("address")) {
+				config.server.address = (*rtsp)["address"].value_or("0.0.0.0");
+			}
 
-		if (tomlConfig.contains("port")) {
-			int port = tomlConfig["port"].value_or(5600);
-			config.server.port = std::to_string(port);
+			if (rtsp->contains("port")) {
+				int port = (*rtsp)["port"].value_or(5600);
+				config.server.port = std::to_string(port);
+			}
 		}
 
 		// Camera config
-		if (toml::table* camera = tomlConfig["camera"].as_table()) {
-
-			if (camera->contains("width")) {
-				config.camera.width = (*camera)["width"].value_or(640);
-			}
-
-			if (camera->contains("height")) {
-				config.camera.height = (*camera)["height"].value_or(480);
+		if (auto camera = tomlConfig["camera"].as_table()) {
+			if (camera->contains("resolution")) {
+				std::string resStr = (*camera)["resolution"].value_or("640x480");
+				config.camera.resolution = stringToResolution(resStr);
+				std::cout << "Resolution set to: " << resolutionToString(config.camera.resolution) << std::endl;
 			}
 
 			if (camera->contains("framerate")) {
 				config.camera.framerate = (*camera)["framerate"].value_or(15);
+				std::cout << "Framerate set to: " << config.camera.framerate << std::endl;
 			}
 
 			if (camera->contains("bitrate")) {
-				config.camera.bitrate = (*camera)["bitrate"].value_or(700);
+				config.camera.bitrate = (*camera)["bitrate"].value_or(2000);
+				std::cout << "Bitrate set to: " << config.camera.bitrate << std::endl;
+			}
+
+			if (camera->contains("rotation")) {
+				std::string rotStr = (*camera)["rotation"].value_or("0");
+				config.camera.rotation = stringToRotation(rotStr);
+				std::cout << "Rotation set to: " << rotationToString(config.camera.rotation)
+					  << " degrees" << std::endl;
 			}
 		}
 

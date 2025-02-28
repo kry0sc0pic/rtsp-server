@@ -28,8 +28,5 @@ private:
 	std::string _port;
 
 	// Camera configuration
-	int _width;
-	int _height;
-	int _framerate;
-	int _bitrate;
+	CameraConfig _cameraConfig;
 };
