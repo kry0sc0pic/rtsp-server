@@ -63,7 +63,7 @@ std::string RtspServer::get_pipeline(Platform platform)
 {
 	switch (platform) {
 	case Platform::Ubuntu:
-		return create_ubuntu_pipeline();
+		return create_pi_pipeline();
 
 	case Platform::Pi:
 		return create_pi_pipeline();
